@@ -9,6 +9,7 @@ const jwt = require("jsonwebtoken");
 
 const dbPath = path.join(__dirname, "twitterClone.db");
 let db = null;
+let loggedInUserName=null;
 const initializeDBAndServer = async () => {
   try {
     db = await open({
@@ -48,6 +49,7 @@ app.post("/register/", async (request, response) => {
 
 app.post("/login/", async (request, response) => {
   const payload = { username: request.body.username };
+  loggedInUserName=request.body.username;
   const selectUserQuery = `SELECT * FROM user WHERE username = '${request.body.username}'`;
   const dbUser = await db.get(selectUserQuery);
   if (dbUser === undefined) {
@@ -78,7 +80,7 @@ const authenticateToken = (request, response, next) => {
     response.status(401);
     response.send("Invalid JWT Token");
   } else {
-    jwt.verify(jwtToken, "MY_SECRET_TOKEN", async (error, payload) => {
+    jwt.verify(jwtToken, "yvyyctf", async (error, payload) => {
       if (error) {
         response.status(401);
         response.send("Invalid JWT Token");
@@ -99,12 +101,21 @@ const convertResultToObject = (user) => {
 app.get("/user/tweets/feed/", async (request, response) => {
   const authHeader = request.headers["authorization"];
   if (authHeader.split(" ")[1] !== undefined) {
-    const getQuery = `SELECT user.username,tweet.tweet,tweet.date_time 
-    FROM user INNER JOIN tweet ON user.user_id=tweet.user_id
-    WHERE user.user_id IN (SELECT following_user_id  
-    FROM user INNER JOIN follower 
-    WHERE user.user_id = follower_user_id 
-    and user.username = 'JoeBiden');`;
+    const tweetsQuery = `
+  SELECT 
+    user.username, tweet.tweet, tweet.date_time AS dateTime
+  FROM
+    follower
+  INNER JOIN tweet
+    ON follower.following_user_id = tweet.user_id
+  INNER JOIN user
+    ON tweet.user_id = user.user_id
+  WHERE 
+    follower.follower_user_id = '${loggedInUserName}'
+  ORDER BY 
+    tweet.date_time DESC
+  LIMIT 4
+  OFFSET 0;`;
     const data = await db.all(getQuery);
     const res = [];
     for (let user of data) {
