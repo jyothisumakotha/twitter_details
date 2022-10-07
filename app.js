@@ -230,7 +230,7 @@ app.get(
 );
 
 app.get(
-  "/tweets/:tweetId/likes/",
+  "/tweets/:tweetId/replies/",
   authenticateToken,
   async (request, response) => {
     const authHeader = request.headers["authorization"];
