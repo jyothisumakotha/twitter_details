@@ -279,18 +279,27 @@ app.post("/user/tweets/", authenticateToken, async (request, response) => {
     response.send("Invalid JWT Token");
   }
 });
-
 app.get("/user/tweets/", authenticateToken, async (request, response) => {
   const authHeader = request.headers["authorization"];
   if (authHeader.split(" ")[1] !== undefined) {
-    const tweetsQuery = `select tweet.tweet,tweet.date_time, count(distinct(like.like_id)) AS likes, count(distinct(reply.reply_id)) AS replies from 
-user INNER JOIN tweet ON user.user_id=tweet.user_id 
-INNER JOIN like ON tweet.tweet_id=like.tweet_id INNER JOIN reply
-ON like.tweet_id=reply.tweet_id 
-where user.user_id = tweet.user_id 
-and tweet.tweet_id = like.tweet_id
-and tweet.tweet_id = reply.tweet_id
-and user.username='${loggedInUserName}';`;
+    const selectQuery = `SELECT * from user WHERE username='${loggedInUserName}'`;
+    const result = await db.get(selectQuery);
+    const tweetsQuery = `SELECT 
+   tweet,
+   (
+       SELECT COUNT(like_id)
+       FROM like
+       WHERE tweet_id=tweet.tweet_id
+   ) AS likes,
+   (
+       SELECT COUNT(reply_id)
+       FROM reply
+       WHERE tweet_id=tweet.tweet_id
+   ) AS replies,
+   date_time AS dateTime
+   FROM tweet
+   WHERE user_id= ${result.user_id};
+   `;
     const data = await db.all(tweetsQuery);
     const output = [];
     for (let tweet of data) {
